@@ -25,28 +25,28 @@ body::before{
   background-size:44px 44px;
 }
 
-/* API KEY MODAL EKRANI */
-#api-modal {
+/* ORTAK MODAL (PENCERE) EKRANI STİLLERİ */
+.modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 20px; font-family: 'Orbitron', monospace; backdrop-filter: blur(5px);
   transition: opacity 0.3s;
 }
-#api-modal.hidden { opacity: 0; pointer-events: none; }
-#api-modal h2 { color: #00f3ff; letter-spacing: 4px; text-shadow: 0 0 15px #00f3ff; }
-#api-modal p { color: rgba(0,243,255,0.7); font-family: 'Rajdhani', sans-serif; font-size: 1.2em; text-align: center; max-width: 400px; }
-#api-input {
-  width: 320px; padding: 12px; background: rgba(0,243,255,0.05); border: 1px solid #00f3ff;
+.modal-overlay.hidden { opacity: 0; pointer-events: none; }
+.modal-overlay h2 { color: #00f3ff; letter-spacing: 4px; text-shadow: 0 0 15px #00f3ff; text-align: center; }
+.modal-overlay p { color: rgba(0,243,255,0.7); font-family: 'Rajdhani', sans-serif; font-size: 1.2em; text-align: center; max-width: 400px; }
+.modal-input {
+  width: 350px; padding: 12px; background: rgba(0,243,255,0.05); border: 1px solid #00f3ff;
   color: #00f3ff; font-family: 'Rajdhani', sans-serif; font-size: 1.2em; text-align: center;
   outline: none; box-shadow: inset 0 0 10px rgba(0,243,255,0.2);
 }
-#api-input::placeholder { color: rgba(0,243,255,0.3); }
-#api-btn {
+.modal-input::placeholder { color: rgba(0,243,255,0.3); }
+.modal-btn {
   padding: 10px 30px; background: transparent; border: 1px solid #00f3ff; color: #00f3ff;
   font-family: 'Orbitron', monospace; font-size: 1em; cursor: pointer; transition: all 0.3s;
   text-transform: uppercase; letter-spacing: 2px;
 }
-#api-btn:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; }
+.modal-btn:hover { background: #00f3ff; color: #000; box-shadow: 0 0 20px #00f3ff; }
 
 /* SETTINGS BUTONU */
 #settings-btn {
@@ -185,14 +185,21 @@ body.S #sub{color:rgba(255,255,255,.82);font-style:italic}
 </head>
 <body>
 
-<div id="api-modal">
-  <h2>SİSTEM BAĞLANTISI</h2>
-  <p>Güvenlik protokolü gereği lütfen Groq API anahtarınızı girin.<br><span style="font-size:0.8em; opacity:0.6;">(Anahtarınız sadece bu tarayıcıda yerel olarak saklanır.)</span></p>
-  <input type="password" id="api-input" placeholder="gsk_...">
-  <button id="api-btn" onclick="kaydetVeBaslat()">Yetkilendir</button>
+<div id="password-modal" class="modal-overlay hidden">
+  <h2>GÜVENLİK PROTOKOLÜ</h2>
+  <p>Sisteme erişmek için ana yönetici şifresini girin.</p>
+  <input type="password" id="password-input" class="modal-input" placeholder="Şifre...">
+  <button class="modal-btn" onclick="sifreKontrol()">Giriş Yap</button>
 </div>
 
-<div id="settings-btn" onclick="anahtariSifirla()">⚙️ API KEY AYARLARI</div>
+<div id="api-modal" class="modal-overlay hidden">
+  <h2>SİSTEM BAĞLANTISI</h2>
+  <p>Lütfen Groq API anahtarınızı girin.<br><span style="font-size:0.8em; opacity:0.6;">(Anahtarınız sadece bu tarayıcıda yerel olarak saklanır.)</span></p>
+  <input type="password" id="api-input" class="modal-input" placeholder="gsk_...">
+  <button class="modal-btn" onclick="kaydetVeBaslat()">Yetkilendir</button>
+</div>
+
+<div id="settings-btn" onclick="anahtariSifirla()">⚙️ SİSTEMİ SIFIRLA</div>
 
 <div class="cr tl"></div><div class="cr tr"></div>
 <div class="cr bl"></div><div class="cr br"></div>
@@ -225,21 +232,53 @@ body.S #sub{color:rgba(255,255,255,.82);font-style:italic}
 
 <script>
 // --- AYARLAR VE HAFIZA ---
-const GROQ_MODEL   = "llama-3.3-70b-versatile";
-const MAX_HISTORY  = 20;
+const GROQ_MODEL = "llama-3.3-70b-versatile";
+const MAX_HISTORY = 20;
+const SYSTEM_PASSWORD = "TheLegendKeremStudiosOfTheCodeing";
 
-// Sayfa yenilense bile hafıza ve isim tarayıcının oturum deposunda tutulur.
 let hafiza = JSON.parse(sessionStorage.getItem('jarvis_hafiza')) || [];
 let userName = sessionStorage.getItem('jarvis_isim') || '';
-let askName = userName === ''; // İsim kayıtlıysa bir daha sormaz
-let GROQ_API_KEY = localStorage.getItem('jarvis_api_key');
+let askName = userName === ''; 
 
-// Sayfa yüklendiğinde API Key kontrolü
+// Yetkilendirme Değişkenleri
+let isAuth = sessionStorage.getItem('jarvis_auth') === 'true'; // Oturum bazlı şifre kontrolü
+let GROQ_API_KEY = localStorage.getItem('jarvis_api_key'); // Tarayıcı bazlı kalıcı API Key
+
+// Sayfa yüklendiğinde Sırayla Kontrol Et
 window.onload = () => {
-  if (GROQ_API_KEY) {
-    document.getElementById('api-modal').classList.add('hidden');
+  if (!isAuth) {
+    // Şifre girilmemişse ilk olarak şifre ekranını göster
+    document.getElementById('password-modal').classList.remove('hidden');
+  } else if (!GROQ_API_KEY) {
+    // Şifre girilmiş ama API key yoksa API ekranını göster
+    document.getElementById('api-modal').classList.remove('hidden');
   }
 };
+
+// Enter tuşlarıyla onaylama kolaylığı
+document.getElementById('password-input').addEventListener('keypress', function (e) {
+  if (e.key === 'Enter') sifreKontrol();
+});
+document.getElementById('api-input').addEventListener('keypress', function (e) {
+  if (e.key === 'Enter') kaydetVeBaslat();
+});
+
+function sifreKontrol() {
+  const val = document.getElementById('password-input').value;
+  if (val === SYSTEM_PASSWORD) {
+    sessionStorage.setItem('jarvis_auth', 'true');
+    isAuth = true;
+    document.getElementById('password-modal').classList.add('hidden');
+    
+    // Şifre onaylandıktan sonra API Key kontrolüne geç
+    if (!GROQ_API_KEY) {
+      document.getElementById('api-modal').classList.remove('hidden');
+    }
+  } else {
+    alert("Erişim Reddedildi. Hatalı Şifre.");
+    document.getElementById('password-input').value = '';
+  }
+}
 
 function kaydetVeBaslat() {
   const val = document.getElementById('api-input').value.trim();
@@ -254,9 +293,10 @@ function kaydetVeBaslat() {
 
 function anahtariSifirla() {
   localStorage.removeItem('jarvis_api_key');
-  sessionStorage.removeItem('jarvis_hafiza'); // Key değişince hafızayı da sıfırlarız
+  sessionStorage.removeItem('jarvis_auth');
+  sessionStorage.removeItem('jarvis_hafiza'); 
   sessionStorage.removeItem('jarvis_isim');
-  location.reload(); // Sayfayı yenileyerek modalın tekrar gelmesini sağlarız
+  location.reload(); 
 }
 // ---------------
 
@@ -280,7 +320,7 @@ function setSub(t,italic=false){
   sb.textContent=t;
 }
 
-// GROQ API İLE DOĞRUDAN BAĞLANTI FONKSİYONU
+// GROQ API BAĞLANTISI
 async function jarvisCevap(mesaj, isim) {
   const sistem = `Sen Jarvis'sin. Tony Stark'ın kişisel yapay zekası. Iron Man filmlerindeki o efsanevi sistem.
   ALTIN KURAL: Adın Jarvis. Asla sadece "ben" demezsin. "Jarvis olarak..." veya "Ben Jarvis..." dersin.
@@ -315,7 +355,6 @@ async function jarvisCevap(mesaj, isim) {
     const cevap = data.choices[0].message.content.trim();
     
     hafiza.push({role: "assistant", content: cevap});
-    // Hafızayı sessionStorage'a kaydet, böylece yenilemede kaybolmaz
     sessionStorage.setItem('jarvis_hafiza', JSON.stringify(hafiza)); 
     
     return cevap;
@@ -353,7 +392,7 @@ if(SR){
       userName = raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase();
       askName = false;
       
-      sessionStorage.setItem('jarvis_isim', userName); // İsmi oturuma kaydet
+      sessionStorage.setItem('jarvis_isim', userName); 
       
       setSub('Kimlik doğrulandı — '+userName+' Bey');
       speak('Hoş geldiniz '+userName+' Bey. Ben Jarvis, Just A Rather Very Intelligent System. '+
@@ -425,10 +464,16 @@ function speak(text){
 }
 
 function tap(){
+  // Tıklandığında önce şifre ve API kontrolü yap
+  if (!isAuth) {
+    document.getElementById('password-modal').classList.remove('hidden');
+    return;
+  }
   if (!GROQ_API_KEY) {
     document.getElementById('api-modal').classList.remove('hidden');
     return;
   }
+  
   if(busy||mode==='T')return;
   
   if(!started){
