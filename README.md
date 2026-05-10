@@ -1,1 +1,1 @@
-Disclaimer: J.A.R.V.I.S., Tony Stark and Stark Industries are trademarks of Marvel Entertainment and The Walt Disney Company. This is a non-commercial, open-source fan project created for educational purposes and is not affiliated with Marvel or Disney."
+Disclaimer: J.A.R.V.I.S., Tony Stark and Stark Industries are trademarks of Marvel Entertainment and The Walt Disney Company. This is a non-commercial, open-source fan project created for educational purposes and is not affiliated with Marvel or Disney.
